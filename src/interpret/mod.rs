@@ -1,7 +1,8 @@
 //! Interpret AST terms into machine operations.
 
 use ast::{Structure, Term};
-use machine::{MachineOps, Register};
+use machine::MachineOps;
+use machine::mem::Register;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
 

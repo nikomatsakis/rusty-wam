@@ -1,5 +1,7 @@
 use ast;
-use machine::{Fallible, MachineOps, Register};
+use machine::Fallible;
+use machine::MachineOps;
+use machine::mem::Register;
 use functor::Functor;
 
 struct Recorder {
@@ -30,9 +32,8 @@ impl MachineOps for Recorder {
         Ok(())
     }
 
-    fn unify_variable(&mut self, r: Register) -> Fallible {
+    fn unify_variable(&mut self, r: Register) {
         self.ops.push(format!("unify_variable {:?}", r));
-        Ok(())
     }
 
     fn unify_value(&mut self, r: Register) -> Fallible {

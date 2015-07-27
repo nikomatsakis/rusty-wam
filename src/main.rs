@@ -6,7 +6,3 @@ mod ast;
 mod interpret;
 mod functor;
 mod machine;
-
-fn main() {
-    println!("Hello, world!");
-}
