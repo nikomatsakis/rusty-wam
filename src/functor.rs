@@ -39,10 +39,6 @@ fn write<F,R>(f: F) -> R
     FUNCTOR_TLS.with(|functors| f(&mut *functors.borrow_mut()))
 }
 
-pub fn functor(text: InternedString, arity: usize) -> Functor {
-    write(|f| f.functor(text, arity))
-}
-
 ///////////////////////////////////////////////////////////////////////////
 // Functors table
 
@@ -60,6 +56,7 @@ impl Functors {
 
         let functor = Functor(self.data.len());
         self.map.insert(data, functor);
+        self.data.push(data);
         functor
     }
 
@@ -72,6 +69,10 @@ impl Functors {
 // Methods on Functor
 
 impl Functor {
+    pub fn new(text: InternedString, arity: usize) -> Functor {
+        write(|f| f.functor(text, arity))
+    }
+
     pub fn text(self) -> InternedString {
         read(|f| f.data(self).text)
     }
