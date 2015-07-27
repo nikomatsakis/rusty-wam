@@ -3,6 +3,8 @@ extern crate lalrpop_intern as intern;
 #[macro_use]
 mod ast;
 
-mod interpret;
+#[macro_use]
 mod functor;
+
+mod interpret;
 mod machine;

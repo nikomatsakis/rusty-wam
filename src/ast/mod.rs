@@ -39,7 +39,6 @@ impl Debug for Structure {
     }
 }
 
-#[macro_export]
 macro_rules! term {
     ($($args:tt)*) => {
         {
@@ -49,7 +48,6 @@ macro_rules! term {
     }
 }
 
-#[macro_export]
 macro_rules! structure {
     ($($args:tt)*) => {
         match terms_tt!($($args,)*,,) {
@@ -59,7 +57,6 @@ macro_rules! structure {
     }
 }
 
-#[macro_export]
 macro_rules! terms_tt {
     () => {
         ()

@@ -6,6 +6,9 @@ use self::mem::{Cell, Memory, Slot, Register};
 
 pub mod mem;
 
+#[cfg(test)]
+mod test;
+
 pub struct Machine {
     mem: Memory,
     mode: Mode,
@@ -26,6 +29,12 @@ pub trait MachineOps {
     fn get_structure(&mut self, f: Functor, r: Register) -> Fallible;
     fn unify_variable(&mut self, r: Register);
     fn unify_value(&mut self, r: Register) -> Fallible;
+}
+
+impl Machine {
+    pub fn new(num_registers: usize) -> Machine {
+        Machine { mem: Memory::new(num_registers), mode: Mode::Write }
+    }
 }
 
 impl MachineOps for Machine {
@@ -79,6 +88,9 @@ impl MachineOps for Machine {
             }
             Cell::Functor(_) => {
                 Err(())
+            }
+            Cell::Uninitialized => {
+                panic!("Load from uninitialized cell at {:?}", addr)
             }
         }
     }

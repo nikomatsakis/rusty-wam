@@ -20,6 +20,17 @@ pub struct FunctorData {
 }
 
 ///////////////////////////////////////////////////////////////////////////
+// Convenience macro
+
+macro_rules! functor {
+    ($x:ident / $n:expr) => {
+        $crate::functor::Functor::new(
+            $crate::intern::intern(stringify!($x)),
+            $n)
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
 // TLS
 
 thread_local! {

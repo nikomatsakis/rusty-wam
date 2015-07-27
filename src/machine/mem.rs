@@ -1,5 +1,6 @@
 use functor::Functor;
 use std::fmt::{Debug, Error, Formatter};
+use std::iter::repeat;
 use std::ops;
 
 use super::Fallible;
@@ -15,7 +16,7 @@ pub struct Slot(usize);
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Register(pub usize);
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Address {
     Heap(usize),
     Register(usize),
@@ -26,9 +27,23 @@ pub enum Cell {
     Structure(Slot),
     Ref(Slot),
     Functor(Functor),
+    Uninitialized,
 }
 
 impl Memory {
+    pub fn new(num_regs: usize) -> Memory {
+        let registers = repeat(Cell::Uninitialized).take(num_regs).collect();
+        Memory { heap: vec![], registers: registers }
+    }
+
+    pub fn heap(&self) -> &[Cell] {
+        &self.heap
+    }
+
+    pub fn registers(&self) -> &[Cell] {
+        &self.registers
+    }
+
     pub fn next_slot(&self) -> Slot {
         Slot(self.heap.len())
     }
@@ -66,6 +81,9 @@ impl Memory {
             }
             Cell::Structure(_) | Cell::Functor(_) => {
                 return addr;
+            }
+            Cell::Uninitialized => {
+                panic!("Access to uninitialized cell at {:?}", addr)
             }
         }
     }
