@@ -1,0 +1,11 @@
+[root]
+name = "wam-tutorial"
+version = "0.1.0"
+dependencies = [
+ "lalrpop-intern 0.2.0",
+]
+
+[[package]]
+name = "lalrpop-intern"
+version = "0.2.0"
+
