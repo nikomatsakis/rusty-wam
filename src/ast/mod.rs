@@ -1,42 +1,65 @@
 use functor::Functor;
 use intern::InternedString;
-use std::fmt::{Debug, Display, Error, Formatter};
+use std::fmt::{Debug, Error, Formatter};
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Term {
     Variable(InternedString),
-    Application(Functor, Vec<Term>),
+    Structure(Structure),
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct Structure {
+    pub functor: Functor,
+    pub terms: Vec<Term>
 }
 
 impl Debug for Term {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         match *self {
             Term::Variable(t) => write!(fmt, "?{}", t),
-            Term::Application(f, ref terms) if terms.is_empty() => write!(fmt, "{}", f.text()),
-            Term::Application(f, ref terms) => {
-                try!(write!(fmt, "{}", f.text()));
-                let mut sep = '(';
-                for term in terms {
-                    try!(write!(fmt, "{}{:?}", sep, term));
-                    sep = ',';
-                }
-                write!(fmt, ")")
-            }
+            Term::Structure(ref s) => write!(fmt, "{:?}", s),
         }
     }
 }
 
-#[macro_escape]
+impl Debug for Structure {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        if self.terms.is_empty() {
+            write!(fmt, "{}", self.functor.text())
+        } else {
+            try!(write!(fmt, "{}", self.functor.text()));
+            let mut sep = '(';
+            for term in &self.terms {
+                try!(write!(fmt, "{}{:?}", sep, term));
+                sep = ',';
+            }
+            write!(fmt, ")")
+        }
+    }
+}
+
+#[macro_export]
 macro_rules! term {
     ($($args:tt)*) => {
         {
-            let (term, ()) = (terms_tt!($($args,)*,,));
+            let (term, ()) = terms_tt!($($args,)*,,);
             term
         }
     }
 }
 
-#[macro_escape]
+#[macro_export]
+macro_rules! structure {
+    ($($args:tt)*) => {
+        match terms_tt!($($args,)*,,) {
+            (ast::Term::Structure(s), ()) => s,
+            (r @ ast::Term::Variable(_), ()) => panic!("{:?} is not a structure", r),
+        }
+    }
+}
+
+#[macro_export]
 macro_rules! terms_tt {
     () => {
         ()
@@ -55,7 +78,10 @@ macro_rules! terms_tt {
                 $crate::ast::ToTermVec::push_to_term_vec(args, &mut vec);
                 let name = $crate::intern::intern(stringify!($x));
                 let functor = $crate::functor::Functor::new(name, vec.len());
-                $crate::ast::Term::Application(functor, vec)
+                $crate::ast::Term::Structure($crate::ast::Structure {
+                    functor: functor,
+                    terms: vec
+                })
             },
             terms_tt!($($remainder,)*)
         )
@@ -66,7 +92,10 @@ macro_rules! terms_tt {
             {
                 let name = $crate::intern::intern(stringify!($x));
                 let functor = $crate::functor::Functor::new(name, 0);
-                $crate::ast::Term::Application(functor, vec![])
+                $crate::ast::Term::Structure($crate::ast::Structure {
+                    functor: functor,
+                    terms: vec![]
+                })
             },
             terms_tt!($($remainder,)*)
         )

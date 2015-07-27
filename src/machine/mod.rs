@@ -1,10 +1,7 @@
 //! Definition of the WAM.
 
-//! Definition of the WAM.
-
 use functor::Functor;
-use std::collections::HashMap;
-use std::fmt::{Debug, Display, Error, Formatter};
+use std::fmt::{Debug, Error, Formatter};
 
 pub struct Machine {
     heap: Vec<Cell>,
@@ -13,13 +10,12 @@ pub struct Machine {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Cell {
-    Uninitialized,
     Structure(usize),
     Ref(usize),
     Functor(Functor),
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Register(pub usize);
 
 impl Debug for Register {
@@ -28,19 +24,13 @@ impl Debug for Register {
     }
 }
 
-trait MachineOps {
-    fn next_register(&mut self) -> Register;
+pub trait MachineOps {
     fn put_structure(&mut self, f: Functor, r: Register);
     fn set_variable(&mut self, r: Register);
     fn set_value(&mut self, r: Register);
 }
 
 impl MachineOps for Machine {
-    fn next_register(&mut self) -> Register {
-        self.registers.push(Cell::Uninitialized);
-        Register(self.registers.len() - 1)
-    }
-
     /// from tutorial figure 2.2
     fn put_structure(&mut self, f: Functor, r: Register) {
         let addr = self.heap.len();
@@ -60,7 +50,6 @@ impl MachineOps for Machine {
 
     /// from tutorial figure 2.2
     fn set_value(&mut self, r: Register) {
-        let addr = self.heap.len();
         self.heap.push(self.registers[r.0].clone());
     }
 }

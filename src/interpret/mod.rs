@@ -1,59 +1,89 @@
 //! Interpret AST terms into machine operations.
 
-use ast::Term;
-use std::collections::HashMap;
-use std::collections::hash::Entry;
+use ast::{Structure, Term};
+use machine::{MachineOps, Register};
+use std::collections::{HashMap, HashSet};
+use std::collections::hash_map::Entry;
 
 #[cfg(test)]
 mod test;
 
-pub fn query<M:MachineOps>(machine: &mut M, term: &Term) -> Register {
-    let interpreter = QueryInterpreter { machine: machine, map: HashMap::new() };
-    interpreter.query(term)
+pub fn query<M:MachineOps>(machine: &mut M, structure: &Structure) {
+    let mut interpreter = QueryInterpreter { machine: machine,
+                                             registers: 1,
+                                             map: HashMap::new(),
+                                             generated: HashSet::new() };
+    interpreter.structure(structure, Register(0));
 }
 
-pub struct QueryInterpreter<M:MachineOps> {
-    machine: M,
-    map: HashMap<InternedString, Register>,
+pub struct QueryInterpreter<'query, M:MachineOps+'query> {
+    registers: usize,
+    machine: &'query mut M,
+    map: HashMap<&'query Term, Register>,
+    generated: HashSet<Register>,
 }
 
-impl<M:MachineOps> QueryInterpreter<M> {
-    fn query(&mut self, term: &Term) -> Register {
-        match *self {
-            Term::Variable(v) =>
-                match map.entry(v) {
-                    Entry::Vacant(slot) => {
-                        let register = self.machine.next_register();
-                        slot.insert(r);
-                        self.machine.set_variable(r);
-                        register
+impl<'query, M:MachineOps> QueryInterpreter<'query, M> {
+    fn structure(&mut self, structure: &'query Structure, into: Register) {
+        // The ordering here is "reverse engineered" from the
+        // tutorial, which (somewhat surprisingly) doesn't specify it.
+
+        // first, allocate registers for every term we see
+        let term_registers: Vec<_> =
+            structure.terms.iter()
+                           .map(|term| self.register(term))
+                           .collect();
+
+        // next, recursively generate new structures (but not
+        // variables); since queries are built bottom-up, this must be
+        // done before generating the current term
+        for (term, &reg) in structure.terms.iter().zip(&term_registers) {
+            match *term {
+                Term::Structure(ref substructure) => {
+                    if self.generated.insert(reg) {
+                        self.structure(substructure, reg);
                     }
-                    Entry::Occupied(slot) => {
-                        let register = *slot.get();
-                        self.machine.set_value(r);
-                        register
-                    }
-                },
-
-            Term::Application(functor, ref terms) => {
-                // Here I deviate slightly from the text as written in
-                // the tutorial; I think that this text would maintain
-                // the invariant that the argument to query-map is a
-                // Structure, and recurse only on structures. This
-                // seems to be strictly more annoying and I think has
-                // the same effect, so I'm not quite sure why they do
-                // it this way.
-
-                let registers: Vec<_> =
-                    terms.iter()
-                         .map(|t| self.query(t))
-                         .collect();
-
-                let register = self.machine.next_register();
-                self.machine.put_structure(functor, register);
-                for register in registers {
-                    self.machine.set_value(register);
                 }
+
+                Term::Variable(_) => { }
+            }
+        }
+
+        // finally, build this term; structures will always have been
+        // generated, but variables may or may not have been observed
+        // yet
+        self.machine.put_structure(structure.functor, into);
+        for (term, &reg) in structure.terms.iter().zip(&term_registers) {
+            match *term {
+                Term::Structure(_) => {
+                    debug_assert!(self.generated.contains(&reg));
+                    self.machine.set_value(reg);
+                }
+
+                Term::Variable(_) => {
+                    if self.generated.insert(reg) {
+                        self.machine.set_variable(reg);
+                    } else {
+                        self.machine.set_value(reg);
+                    }
+                }
+            }
+        }
+    }
+
+    fn register(&mut self, term: &'query Term) -> Register {
+        match self.map.entry(term) {
+            // already have a register for this term; no work to do
+            Entry::Occupied(slot) => {
+                *slot.get()
+            }
+
+            // need a register
+            Entry::Vacant(slot) => {
+                let register = Register(self.registers);
+                self.registers += 1;
+                slot.insert(register);
+                register
             }
         }
     }

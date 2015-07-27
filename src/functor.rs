@@ -3,14 +3,14 @@
 use intern::InternedString;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt::{Debug, Display, Error, Formatter};
+use std::fmt::{Debug, Error, Formatter};
 
 pub struct Functors {
     data: Vec<FunctorData>,
     map: HashMap<FunctorData, Functor>,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Functor(usize);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
