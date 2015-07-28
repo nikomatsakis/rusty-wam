@@ -1,7 +1,6 @@
 //! Definition of the WAM.
 
 use functor::Functor;
-use std::fmt::{Debug, Error, Formatter};
 
 use self::mem::{Cell, Memory, Pointer, Slot, Register};
 

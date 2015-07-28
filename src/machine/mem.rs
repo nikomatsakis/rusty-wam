@@ -40,10 +40,6 @@ impl Memory {
         &self.heap
     }
 
-    pub fn registers(&self) -> &[Cell] {
-        &self.registers
-    }
-
     pub fn next_slot(&self) -> Slot {
         Slot(self.heap.len())
     }
@@ -279,11 +275,11 @@ impl<'mem> MGU<'mem> {
                 if functor.arity() > 0 {
                     try!(write!(fmt, "("));
                     slot.bump();
-                    self.write(fmt, slot);
-                    for i in 1 .. functor.arity() {
+                    try!(self.write(fmt, slot));
+                    for _ in 1 .. functor.arity() {
                         slot.bump();
                         try!(write!(fmt, ","));
-                        self.write(fmt, slot);
+                        try!(self.write(fmt, slot));
                     }
                     try!(write!(fmt, ")"));
                 }

@@ -2,7 +2,7 @@
 
 use ast::{Structure, Term};
 use intern::InternedString;
-use machine::MachineOps;
+use machine::{Fallible, MachineOps};
 use machine::mem::Register;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
@@ -100,7 +100,7 @@ pub fn program<M:MachineOps>(machine: &mut M, structure: &Structure) {
                                                registers: 1,
                                                map: HashMap::new(),
                                                generated: HashSet::new() };
-    interpreter.structure(structure, Register(0));
+    interpreter.structure(structure, Register(0)).unwrap();
 }
 
 pub struct ProgramInterpreter<'term, M:MachineOps+'term> {
@@ -111,7 +111,7 @@ pub struct ProgramInterpreter<'term, M:MachineOps+'term> {
 }
 
 impl<'term, M:MachineOps> ProgramInterpreter<'term, M> {
-    fn structure(&mut self, structure: &'term Structure, into: Register) {
+    fn structure(&mut self, structure: &'term Structure, into: Register) -> Fallible {
         // The ordering here is "reverse engineered" from the
         // tutorial, which (somewhat surprisingly) doesn't specify it.
 
@@ -124,7 +124,7 @@ impl<'term, M:MachineOps> ProgramInterpreter<'term, M> {
         // finally, build this term; structures will never have been
         // generated, but variables may or may not have been observed
         // yet
-        self.machine.get_structure(structure.functor, into);
+        try!(self.machine.get_structure(structure.functor, into));
         for (term, &reg) in structure.terms.iter().zip(&term_registers) {
             match *term {
                 Term::Structure(_) => {
@@ -135,7 +135,7 @@ impl<'term, M:MachineOps> ProgramInterpreter<'term, M> {
                     if self.generated.insert(v) {
                         self.machine.unify_variable(reg);
                     } else {
-                        self.machine.unify_value(reg);
+                        try!(self.machine.unify_value(reg));
                     }
                 }
             }
@@ -147,12 +147,14 @@ impl<'term, M:MachineOps> ProgramInterpreter<'term, M> {
         for (term, &reg) in structure.terms.iter().zip(&term_registers) {
             match *term {
                 Term::Structure(ref substructure) => {
-                    self.structure(substructure, reg);
+                    try!(self.structure(substructure, reg));
                 }
 
                 Term::Variable(_) => { }
             }
         }
+
+        Ok(())
     }
 
     fn register(&mut self, term: &'term Term) -> Register {
