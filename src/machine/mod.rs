@@ -1,8 +1,9 @@
 //! Definition of the WAM.
 
 use functor::Functor;
+use std::fmt::{Debug, Error, Formatter};
 
-use self::mem::{Cell, Memory, Slot, Register};
+use self::mem::{Cell, Memory, Pointer, Slot, Register};
 
 pub mod mem;
 
@@ -35,6 +36,10 @@ impl Machine {
     pub fn new(num_registers: usize) -> Machine {
         Machine { mem: Memory::new(num_registers), mode: Mode::Write }
     }
+
+    pub fn mgu<'a,P:mem::Pointer>(&'a self, addr: P) -> mem::MGU<'a> {
+        mem::MGU::new(&self.mem, addr.to_address())
+    }
 }
 
 impl MachineOps for Machine {
@@ -65,10 +70,10 @@ impl MachineOps for Machine {
         let addr = self.mem.deref(r.to_address());
         match self.mem.load(addr) {
             Cell::Ref(_) => {
-                let ptr = self.mem.next_slot();
-                self.mem.push(Cell::Structure(ptr + 1));
+                let slot = self.mem.next_slot();
+                self.mem.push(Cell::Structure(slot + 1));
                 self.mem.push(Cell::Functor(f));
-                try!(self.mem.bind(addr, ptr.to_address()));
+                self.mem.bind(addr, slot);
                 self.mode = Mode::Write;
                 Ok(())
             }
@@ -115,7 +120,7 @@ impl MachineOps for Machine {
     fn unify_value(&mut self, reg: Register) -> Fallible {
         match self.mode {
             Mode::Read(ref mut next) => {
-                try!(self.mem.unify(reg.to_address(), next.to_address()));
+                try!(self.mem.unify(reg.to_address(), *next));
                 next.bump();
                 Ok(())
             }
