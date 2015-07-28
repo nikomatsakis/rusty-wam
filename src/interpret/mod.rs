@@ -1,6 +1,7 @@
 //! Interpret AST terms into machine operations.
 
 use ast::{Structure, Term};
+use intern::InternedString;
 use machine::MachineOps;
 use machine::mem::Register;
 use std::collections::{HashMap, HashSet};
@@ -20,8 +21,8 @@ pub fn query<M:MachineOps>(machine: &mut M, structure: &Structure) {
 pub struct QueryInterpreter<'term, M:MachineOps+'term> {
     registers: usize,
     machine: &'term mut M,
-    map: HashMap<&'term Term, Register>,
-    generated: HashSet<Register>,
+    map: HashMap<InternedString, Register>,
+    generated: HashSet<InternedString>,
 }
 
 impl<'term, M:MachineOps> QueryInterpreter<'term, M> {
@@ -41,9 +42,7 @@ impl<'term, M:MachineOps> QueryInterpreter<'term, M> {
         for (term, &reg) in structure.terms.iter().zip(&term_registers) {
             match *term {
                 Term::Structure(ref substructure) => {
-                    if self.generated.insert(reg) {
-                        self.structure(substructure, reg);
-                    }
+                    self.structure(substructure, reg);
                 }
 
                 Term::Variable(_) => { }
@@ -57,12 +56,11 @@ impl<'term, M:MachineOps> QueryInterpreter<'term, M> {
         for (term, &reg) in structure.terms.iter().zip(&term_registers) {
             match *term {
                 Term::Structure(_) => {
-                    debug_assert!(self.generated.contains(&reg));
                     self.machine.set_value(reg);
                 }
 
-                Term::Variable(_) => {
-                    if self.generated.insert(reg) {
+                Term::Variable(v) => {
+                    if self.generated.insert(v) {
                         self.machine.set_variable(reg);
                     } else {
                         self.machine.set_value(reg);
@@ -73,18 +71,25 @@ impl<'term, M:MachineOps> QueryInterpreter<'term, M> {
     }
 
     fn register(&mut self, term: &'term Term) -> Register {
-        match self.map.entry(term) {
-            // already have a register for this term; no work to do
-            Entry::Occupied(slot) => {
-                *slot.get()
-            }
-
-            // need a register
-            Entry::Vacant(slot) => {
-                let register = Register(self.registers);
-                self.registers += 1;
-                slot.insert(register);
+        match *term {
+            Term::Structure(_) => {
+                let register = bump_register(&mut self.registers);
                 register
+            }
+            Term::Variable(v) => {
+                match self.map.entry(v) {
+                    // already have a register for this term; no work to do
+                    Entry::Occupied(slot) => {
+                        *slot.get()
+                    }
+
+                    // need a register
+                    Entry::Vacant(slot) => {
+                        let register = bump_register(&mut self.registers);
+                        slot.insert(register);
+                        register
+                    }
+                }
             }
         }
     }
@@ -101,8 +106,8 @@ pub fn program<M:MachineOps>(machine: &mut M, structure: &Structure) {
 pub struct ProgramInterpreter<'term, M:MachineOps+'term> {
     registers: usize,
     machine: &'term mut M,
-    map: HashMap<&'term Term, Register>,
-    generated: HashSet<Register>,
+    map: HashMap<InternedString, Register>,
+    generated: HashSet<InternedString>,
 }
 
 impl<'term, M:MachineOps> ProgramInterpreter<'term, M> {
@@ -123,12 +128,11 @@ impl<'term, M:MachineOps> ProgramInterpreter<'term, M> {
         for (term, &reg) in structure.terms.iter().zip(&term_registers) {
             match *term {
                 Term::Structure(_) => {
-                    debug_assert!(!self.generated.contains(&reg));
                     self.machine.unify_variable(reg);
                 }
 
-                Term::Variable(_) => {
-                    if self.generated.insert(reg) {
+                Term::Variable(v) => {
+                    if self.generated.insert(v) {
                         self.machine.unify_variable(reg);
                     } else {
                         self.machine.unify_value(reg);
@@ -143,9 +147,7 @@ impl<'term, M:MachineOps> ProgramInterpreter<'term, M> {
         for (term, &reg) in structure.terms.iter().zip(&term_registers) {
             match *term {
                 Term::Structure(ref substructure) => {
-                    if self.generated.insert(reg) {
-                        self.structure(substructure, reg);
-                    }
+                    self.structure(substructure, reg);
                 }
 
                 Term::Variable(_) => { }
@@ -154,22 +156,33 @@ impl<'term, M:MachineOps> ProgramInterpreter<'term, M> {
     }
 
     fn register(&mut self, term: &'term Term) -> Register {
-        match self.map.entry(term) {
-            // already have a register for this term; no work to do
-            Entry::Occupied(slot) => {
-                *slot.get()
-            }
-
-            // need a register
-            Entry::Vacant(slot) => {
-                let register = Register(self.registers);
-                self.registers += 1;
-                slot.insert(register);
+        match *term {
+            Term::Structure(_) => {
+                let register = bump_register(&mut self.registers);
                 register
+            }
+            Term::Variable(v) => {
+                match self.map.entry(v) {
+                    // already have a register for this term; no work to do
+                    Entry::Occupied(slot) => {
+                        *slot.get()
+                    }
+
+                    // need a register
+                    Entry::Vacant(slot) => {
+                        let register = bump_register(&mut self.registers);
+                        slot.insert(register);
+                        register
+                    }
+                }
             }
         }
     }
 }
 
-
+fn bump_register(registers: &mut usize) -> Register {
+    let r = Register(*registers);
+    *registers += 1;
+    r
+}
 

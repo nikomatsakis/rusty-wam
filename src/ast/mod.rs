@@ -51,8 +51,8 @@ macro_rules! term {
 macro_rules! structure {
     ($($args:tt)*) => {
         match terms_tt!($($args,)*,,) {
-            (ast::Term::Structure(s), ()) => s,
-            (r @ ast::Term::Variable(_), ()) => panic!("{:?} is not a structure", r),
+            ($crate::ast::Term::Structure(s), ()) => s,
+            (r @ $crate::ast::Term::Variable(_), ()) => panic!("{:?} is not a structure", r),
         }
     }
 }

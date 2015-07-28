@@ -7,8 +7,8 @@ use self::mem::{Cell, Memory, Pointer, Slot, Register};
 
 pub mod mem;
 
-//#[cfg(test)]
-//mod test;
+#[cfg(test)]
+mod test;
 
 #[derive(Debug)]
 pub struct Machine {

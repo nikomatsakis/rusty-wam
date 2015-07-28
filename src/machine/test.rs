@@ -1,6 +1,8 @@
 use super::{Machine, MachineOps};
 use super::mem::Register;
 
+use interpret;
+
 fn heap(machine: &Machine) -> Vec<String> {
     machine.mem.heap().iter()
                       .enumerate()
@@ -42,7 +44,7 @@ fn figure2_4<M:MachineOps>(machine: &mut M) {
     machine.get_structure(functor!(f/1), Register(1));
     machine.unify_variable(Register(4));
     machine.get_structure(functor!(h/2), Register(2));
-    machine.unify_variable(Register(3));
+    machine.unify_value(Register(3));
     machine.unify_variable(Register(5));
     machine.get_structure(functor!(f/1), Register(5));
     machine.unify_variable(Register(6));
@@ -82,32 +84,18 @@ fn exercise2_3() {
 
 #[test]
 fn exercise2_3_1() {
-    // p(X,   X,f(a))
-    // p(f(Y),Y,Y)
-
-    // p(Z,   h(Z,  W),     f(W))
-    // p(f(X),h(Y,  f(a)),  Y)
-    //
-    // p(f(?),h(f(?),f(a)), f(f(a)))
+    // same as above, but using `interpret` to drive the machine,
+    // instead of a hardcoded sequence of instructions
 
     let mut machine = Machine::new(7);
 
     {
         let mut machine = machine.dump();
-
-        interpret::query(&mut machine, structure!("p(?X, ?X, f(a))"));
-
-        machine.get_structure(functor!(p/2), Register(0));
-        machine.unify_variable(Register(1));
-        machine.unify_variable(Register(2));
-
-        machine.get_structure(functor!(f/1), Register(1));
-        machine.unify_variable(Register(3));
-
-        machine.get_structure(functor!(a/0), Register(3));
+        interpret::query(&mut machine,   &structure!(p(?Z,    h(?Z, ?W),   f(?W))));
+        interpret::program(&mut machine, &structure!(p(f(?X), h(?Y, f(a)), ?Y)));
     }
 
     assert_eq!(
         &format!("{:?}", machine.mgu(Register(0))),
-        "");
+        "p(f(f(a)),h(f(f(a)),f(a)),f(f(a)))");
 }
