@@ -37,7 +37,7 @@ impl MachineOps for Recorder {
     }
 
     fn unify_value(&mut self, r: Register) -> Fallible {
-        self.ops.push(format!("unify_value5D {:?}", r));
+        self.ops.push(format!("unify_value {:?}", r));
         Ok(())
     }
 }
@@ -66,5 +66,35 @@ fn test1() {
     "set_value R1",
     "set_value R2",
     "set_value R3"
+            ]);
+}
+
+pub fn test_program(structure: &ast::Structure, expected_ops: Vec<&str>) {
+    let mut r = Recorder::new();
+    super::program(&mut r, structure);
+    println!("Program {:?} yields {:#?}", structure, r.ops);
+    for (expected_op, actual_op) in expected_ops.iter().zip(&r.ops) {
+        assert_eq!(expected_op, actual_op);
+    }
+    assert_eq!(expected_ops.len(), r.ops.len());
+}
+
+#[test]
+fn program1() {
+    test_program(
+        &structure!(p(f(?X), h(?Y, f(a)), ?Y)),
+        vec![
+    "get_structure p/3,R0",
+    "unify_variable R1",
+    "unify_variable R2",
+    "unify_variable R3",
+    "get_structure f/1,R1",
+    "unify_variable R4",
+    "get_structure h/2,R2",
+    "unify_value R3",
+    "unify_variable R5",
+    "get_structure f/1,R5",
+    "unify_variable R6",
+    "get_structure a/0,R6"
             ]);
 }

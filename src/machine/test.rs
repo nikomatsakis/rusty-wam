@@ -22,7 +22,7 @@ macro_rules! test_heap {
     }
 }
 
-fn figure2_3(machine: &mut Machine) {
+fn figure2_3<M:MachineOps>(machine: &mut M) {
     machine.put_structure(functor!(h/2), Register(2));
     machine.set_variable(Register(1));
     machine.set_variable(Register(4));
@@ -32,31 +32,21 @@ fn figure2_3(machine: &mut Machine) {
     machine.set_value(Register(1));
     machine.set_value(Register(2));
     machine.set_value(Register(3));
-    println!("after figure2_3: {:#?}", &machine.mem);
 }
 
-fn figure2_4(machine: &mut Machine) {
+fn figure2_4<M:MachineOps>(machine: &mut M) {
     machine.get_structure(functor!(p/3), Register(0));
     machine.unify_variable(Register(1));
     machine.unify_variable(Register(2));
     machine.unify_variable(Register(3));
-    println!("{:#?}", &machine.mem);
-
     machine.get_structure(functor!(f/1), Register(1));
     machine.unify_variable(Register(4));
-    println!("{:#?}", &machine.mem);
-
     machine.get_structure(functor!(h/2), Register(2));
     machine.unify_variable(Register(3));
     machine.unify_variable(Register(5));
-    println!("{:#?}", &machine.mem);
-
     machine.get_structure(functor!(f/1), Register(5));
     machine.unify_variable(Register(6));
-    println!("{:#?}", &machine.mem);
-
     machine.get_structure(functor!(a/0), Register(6));
-    println!("{:#?}", &machine.mem);
 }
 
 #[test]
@@ -88,4 +78,36 @@ fn exercise2_3() {
     assert_eq!(
         &format!("{:?}", machine.mgu(Register(0))),
         "p(f(f(a)),h(f(f(a)),f(a)),f(f(a)))");
+}
+
+#[test]
+fn exercise2_3_1() {
+    // p(X,   X,f(a))
+    // p(f(Y),Y,Y)
+
+    // p(Z,   h(Z,  W),     f(W))
+    // p(f(X),h(Y,  f(a)),  Y)
+    //
+    // p(f(?),h(f(?),f(a)), f(f(a)))
+
+    let mut machine = Machine::new(7);
+
+    {
+        let mut machine = machine.dump();
+
+        interpret::query(&mut machine, structure!("p(?X, ?X, f(a))"));
+
+        machine.get_structure(functor!(p/2), Register(0));
+        machine.unify_variable(Register(1));
+        machine.unify_variable(Register(2));
+
+        machine.get_structure(functor!(f/1), Register(1));
+        machine.unify_variable(Register(3));
+
+        machine.get_structure(functor!(a/0), Register(3));
+    }
+
+    assert_eq!(
+        &format!("{:?}", machine.mgu(Register(0))),
+        "");
 }

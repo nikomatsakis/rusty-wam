@@ -17,15 +17,15 @@ pub fn query<M:MachineOps>(machine: &mut M, structure: &Structure) {
     interpreter.structure(structure, Register(0));
 }
 
-pub struct QueryInterpreter<'query, M:MachineOps+'query> {
+pub struct QueryInterpreter<'term, M:MachineOps+'term> {
     registers: usize,
-    machine: &'query mut M,
-    map: HashMap<&'query Term, Register>,
+    machine: &'term mut M,
+    map: HashMap<&'term Term, Register>,
     generated: HashSet<Register>,
 }
 
-impl<'query, M:MachineOps> QueryInterpreter<'query, M> {
-    fn structure(&mut self, structure: &'query Structure, into: Register) {
+impl<'term, M:MachineOps> QueryInterpreter<'term, M> {
+    fn structure(&mut self, structure: &'term Structure, into: Register) {
         // The ordering here is "reverse engineered" from the
         // tutorial, which (somewhat surprisingly) doesn't specify it.
 
@@ -72,7 +72,88 @@ impl<'query, M:MachineOps> QueryInterpreter<'query, M> {
         }
     }
 
-    fn register(&mut self, term: &'query Term) -> Register {
+    fn register(&mut self, term: &'term Term) -> Register {
+        match self.map.entry(term) {
+            // already have a register for this term; no work to do
+            Entry::Occupied(slot) => {
+                *slot.get()
+            }
+
+            // need a register
+            Entry::Vacant(slot) => {
+                let register = Register(self.registers);
+                self.registers += 1;
+                slot.insert(register);
+                register
+            }
+        }
+    }
+}
+
+pub fn program<M:MachineOps>(machine: &mut M, structure: &Structure) {
+    let mut interpreter = ProgramInterpreter { machine: machine,
+                                               registers: 1,
+                                               map: HashMap::new(),
+                                               generated: HashSet::new() };
+    interpreter.structure(structure, Register(0));
+}
+
+pub struct ProgramInterpreter<'term, M:MachineOps+'term> {
+    registers: usize,
+    machine: &'term mut M,
+    map: HashMap<&'term Term, Register>,
+    generated: HashSet<Register>,
+}
+
+impl<'term, M:MachineOps> ProgramInterpreter<'term, M> {
+    fn structure(&mut self, structure: &'term Structure, into: Register) {
+        // The ordering here is "reverse engineered" from the
+        // tutorial, which (somewhat surprisingly) doesn't specify it.
+
+        // first, allocate registers for every term we see
+        let term_registers: Vec<_> =
+            structure.terms.iter()
+                           .map(|term| self.register(term))
+                           .collect();
+
+        // finally, build this term; structures will never have been
+        // generated, but variables may or may not have been observed
+        // yet
+        self.machine.get_structure(structure.functor, into);
+        for (term, &reg) in structure.terms.iter().zip(&term_registers) {
+            match *term {
+                Term::Structure(_) => {
+                    debug_assert!(!self.generated.contains(&reg));
+                    self.machine.unify_variable(reg);
+                }
+
+                Term::Variable(_) => {
+                    if self.generated.insert(reg) {
+                        self.machine.unify_variable(reg);
+                    } else {
+                        self.machine.unify_value(reg);
+                    }
+                }
+            }
+        }
+
+        // next, recursively generate new structures (but not
+        // variables); since programs are built top-down, this must be
+        // done after generating the current term
+        for (term, &reg) in structure.terms.iter().zip(&term_registers) {
+            match *term {
+                Term::Structure(ref substructure) => {
+                    if self.generated.insert(reg) {
+                        self.structure(substructure, reg);
+                    }
+                }
+
+                Term::Variable(_) => { }
+            }
+        }
+    }
+
+    fn register(&mut self, term: &'term Term) -> Register {
         match self.map.entry(term) {
             // already have a register for this term; no work to do
             Entry::Occupied(slot) => {

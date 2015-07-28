@@ -5,7 +5,6 @@ use std::ops;
 
 use super::Fallible;
 
-#[derive(Debug)]
 pub struct Memory {
     heap: Vec<Cell>,
     registers: Vec<Cell>,
@@ -68,26 +67,27 @@ impl Memory {
         p.store(self, cell)
     }
 
-    pub fn bind(&mut self, addr1: Address, slot2: Slot) {
-        let addr1 = self.deref(addr1);
-        let slot2 = self.deref(slot2);
-        match (self.load(addr1), self.load(slot2)) {
-            (Cell::Ref(_), _) => {
-                self.store(addr1, Cell::Ref(slot2));
+    pub fn bind(&mut self, addr1: Address, addr2: Address) {
+        println!("bind({:?}={:?}, {:?}={:?})",
+                 addr1, self.load(addr1),
+                 addr2, self.load(addr2));
+        match (self.load(addr1), self.load(addr2)) {
+            (Cell::Ref(_), cell2) => {
+                self.store(addr1, cell2);
             }
-            (cell, Cell::Ref(_)) => {
-                self.store(slot2, Cell::Ref(addr1.to_slot().unwrap()));
+            (cell1, Cell::Ref(_)) => {
+                self.store(addr2, cell1);
             }
             (cell1, cell2) => {
                 panic!("bind invoked with two non-ref addresses: {:?}=>{:?}, {:?}=>{:?}",
-                       addr1, cell1, slot2, cell2);
+                       addr1, cell1, addr2, cell2);
             }
         }
     }
 
-    pub fn unify(&mut self, addr1: Address, slot2: Slot) -> Fallible {
+    pub fn unify(&mut self, addr1: Address, addr2: Address) -> Fallible {
         let mut stack = vec![];
-        stack.push((addr1, slot2));
+        stack.push((addr1, addr2));
         while let Some((d1, d2)) = stack.pop() {
             let d1 = self.deref(d1);
             let d2 = self.deref(d2);
@@ -106,7 +106,8 @@ impl Memory {
                     let f2 = self.load_functor(v2);
                     if f1 == f2 {
                         for i in 1..(f1.arity()+1) {
-                            stack.push(((v1 + i).to_address(), v2 + i));
+                            stack.push(((v1 + i).to_address(),
+                                        (v2 + i).to_address()));
                         }
                     } else {
                         return Err(());
@@ -306,5 +307,19 @@ impl<'mem> MGU<'mem> {
 impl<'mem> Debug for MGU<'mem> {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         self.write(fmt, self.addr)
+    }
+}
+
+impl Debug for Memory {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        try!(writeln!(fmt, "Memory {{"));
+        for (i, cell) in self.heap.iter().enumerate() {
+            try!(writeln!(fmt, "  H{:?}: {:?}", i, cell));
+        }
+        try!(writeln!(fmt, ""));
+        for (i, cell) in self.registers.iter().enumerate() {
+            try!(writeln!(fmt, "  R{:?}: {:?}", i, cell));
+        }
+        writeln!(fmt, "}}")
     }
 }
