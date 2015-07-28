@@ -93,10 +93,20 @@ fn exercise2_3_1() {
     {
         let mut machine = machine.dump();
         interpret::query(&mut machine,   &structure!(p(?Z,    h(?Z, ?W),   f(?W))));
-        interpret::program(&mut machine, &structure!(p(f(?X), h(?Y, f(a)), ?Y)));
+        interpret::program(&mut machine, &structure!(p(f(?X), h(?Y, f(a)), ?Y))).unwrap();
     }
 
     assert_eq!(
         &format!("{:?}", machine.mgu(Register(0))),
         "p(f(f(a)),h(f(f(a)),f(a)),f(f(a)))");
+}
+
+#[test]
+fn fail_to_unify1() {
+    // same as above, but using `interpret` to drive the machine,
+    // instead of a hardcoded sequence of instructions
+
+    let mut machine = Machine::new(7);
+    interpret::query(&mut machine,   &structure!(p(?Z,    ?Z)));
+    assert!(interpret::program(&mut machine, &structure!(p(f(?X), g(?X)))).is_err());
 }

@@ -95,12 +95,12 @@ impl<'term, M:MachineOps> QueryInterpreter<'term, M> {
     }
 }
 
-pub fn program<M:MachineOps>(machine: &mut M, structure: &Structure) {
+pub fn program<M:MachineOps>(machine: &mut M, structure: &Structure) -> Fallible {
     let mut interpreter = ProgramInterpreter { machine: machine,
                                                registers: 1,
                                                map: HashMap::new(),
                                                generated: HashSet::new() };
-    interpreter.structure(structure, Register(0)).unwrap();
+    interpreter.structure(structure, Register(0))
 }
 
 pub struct ProgramInterpreter<'term, M:MachineOps+'term> {

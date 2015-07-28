@@ -71,7 +71,7 @@ fn test1() {
 
 pub fn test_program(structure: &ast::Structure, expected_ops: Vec<&str>) {
     let mut r = Recorder::new();
-    super::program(&mut r, structure);
+    super::program(&mut r, structure).unwrap();
     println!("Program {:?} yields {:#?}", structure, r.ops);
     for (expected_op, actual_op) in expected_ops.iter().zip(&r.ops) {
         assert_eq!(expected_op, actual_op);
